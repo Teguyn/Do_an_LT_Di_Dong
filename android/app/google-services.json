@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "642528939263",
+    "project_id": "do-an-lap-trinh-di",
+    "storage_bucket": "do-an-lap-trinh-di.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:642528939263:android:f3b9cc109a155e8de790ca",
+        "android_client_info": {
+          "package_name": "com.example.do_an_lap_trinh_tren_thiet_bi_di_dong_mychat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA8X_OBvsFiJTmnS9QWQZnVQs9aucPcOnc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
