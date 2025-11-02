@@ -7,7 +7,6 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/home_screen.dart'; // Màn hình chính sau đăng nhập
-// import 'screens/search_user_screen.dart'; // Không cần import ở đây nữa
 
 Future<void> main() async {
   // Đảm bảo Flutter và Firebase được khởi tạo

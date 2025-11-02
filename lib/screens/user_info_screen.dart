@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/user_service.dart'; // Import UserService
 import 'chat_screen.dart'; // Import ChatScreen
+import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserInfoScreen extends StatefulWidget {
   final String friendUid;
@@ -30,7 +32,38 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
     super.initState();
     _loadAllData();
   }
+   Widget _buildOnlineStatus(Map<String, dynamic> userData) {
+  final bool isOnline = userData['isOnline'] ?? false;
+  final Timestamp? lastSeen = userData['lastSeen'];
 
+  if (isOnline) {
+    return const Text(
+      'Đang hoạt động',
+      style: TextStyle(color: Colors.green, fontSize: 14),
+    );
+  } else if (lastSeen != null) {
+    final DateTime time = lastSeen.toDate();
+    final Duration diff = DateTime.now().difference(time);
+
+    String status;
+    if (diff.inMinutes < 1) {
+      status = 'Hoạt động vài giây trước';
+    } else if (diff.inMinutes < 60) {
+      status = 'Hoạt động ${diff.inMinutes} phút trước';
+    } else if (diff.inHours < 24) {
+      status = 'Hoạt động ${diff.inHours} giờ trước';
+    } else {
+      status = 'Hoạt động ${DateFormat('dd/MM/yyyy HH:mm').format(time)}';
+    }
+
+    return Text(
+      status,
+      style: const TextStyle(color: Colors.grey, fontSize: 14),
+    );
+  } else {
+    return const SizedBox.shrink();
+  }
+}
   // Tải đồng thời thông tin user và trạng thái bạn bè
   Future<void> _loadAllData() async {
     if (currentUser == null) return;
@@ -77,107 +110,129 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      // Dùng CustomScrollView để AppBar có thể "trôi" (nếu muốn)
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _friendData == null
-              ? const Center(child: Text('Không tìm thấy người dùng.'))
-              : CustomScrollView(
-                  slivers: [
-                    _buildSliverAppBar(), // AppBar với ảnh bìa và avatar
-                    SliverList(
-                      delegate: SliverChildListDelegate([
-                        _buildActionButtons(), // Nút Nhắn tin, Kết bạn
-                        _buildInfoSection(),   // Thông tin (SĐT, v.v.)
-                        _buildPostFeed(),      // Phần Bài viết
-                      ]),
-                    ),
-                  ],
-                ),
-    );
-  }
-
-  // --- Widget con ---
-
-  // 1. AppBar (Ảnh bìa, Avatar, Tên)
-  Widget _buildSliverAppBar() {
-    final String name = _friendData?['name'] ?? 'Người dùng';
-    final String? avatarUrl = _friendData?['avatarUrl'];
-    // TODO: Lấy ảnh bìa (coverUrl) từ _friendData nếu có
-    // final String? coverUrl = _friendData?['coverUrl'];
-
-    return SliverAppBar(
-      expandedHeight: 200.0, // Chiều cao của ảnh bìa
-      floating: false,
-      pinned: true, // Giữ AppBar thu nhỏ ở trên cùng
-      iconTheme: const IconThemeData(color: Colors.white), // Nút back màu trắng
-      backgroundColor: const Color(0xFF2575FC), // Màu nền khi cuộn lên
-      flexibleSpace: FlexibleSpaceBar(
-        // Tiêu đề thu nhỏ (khi cuộn)
-        title: Text(
-          name,
-          style: const TextStyle(color: Colors.white, fontSize: 16.0, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: false,
-        titlePadding: const EdgeInsetsDirectional.only(start: 72, bottom: 16),
-        // Nền (Ảnh bìa và Avatar)
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Ảnh bìa (Placeholder)
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _friendData == null
+            ? const Center(child: Text('Không tìm thấy người dùng.'))
+            : CustomScrollView(
+                slivers: [
+                  _buildSliverAppBar(), // AppBar có ảnh bìa, avatar, trạng thái
+                  SliverList(
+                    delegate: SliverChildListDelegate([
+                      _buildActionButtons(), // Nút Nhắn tin, Kết bạn, vv
+                      _buildInfoSection(),   // Thông tin cá nhân
+                      _buildPostFeed(),      // Danh sách bài viết
+                    ]),
+                  ),
+                ],
               ),
-              // TODO: Thay thế bằng ảnh bìa thật
-              // child: coverUrl != null
-              //     ? Image.network(coverUrl, fit: BoxFit.cover)
-              //     : Container(color: Colors.blueGrey),
+  );
+}
+
+// --- AppBar (Ảnh bìa, Avatar, Tên, Trạng thái hoạt động) ---
+Widget _buildSliverAppBar() {
+  final String name = _friendData?['name'] ?? 'Người dùng';
+  final String? avatarUrl = _friendData?['avatarUrl'];
+  final String? coverUrl = _friendData?['coverUrl'];
+  final bool isOnline = _friendData?['isOnline'] ?? false;
+  final Timestamp? lastSeen = _friendData?['lastSeen'];
+
+  return SliverAppBar(
+    expandedHeight: 230.0,
+    floating: false,
+    pinned: true,
+    iconTheme: const IconThemeData(color: Colors.white),
+    backgroundColor: const Color(0xFF2575FC),
+    flexibleSpace: FlexibleSpaceBar(
+      titlePadding: const EdgeInsetsDirectional.only(start: 72, bottom: 16),
+      centerTitle: false,
+      // Tiêu đề khi cuộn lên
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16.0,
+              fontWeight: FontWeight.bold,
             ),
-            // Lớp phủ mờ
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment(0.0, 0.5),
-                  end: Alignment(0.0, 0.0),
-                  colors: <Color>[
-                    Color(0x60000000), // Lớp mờ ở dưới
-                    Color(0x00000000),
-                  ],
-                ),
-              ),
-            ),
-            // Avatar (Chồng lên ảnh bìa)
-            Positioned(
-              bottom: -1, // Nằm sát viền dưới (để có viền trắng)
-              left: 16,
-              child: Container(
-                 padding: const EdgeInsets.all(4), // Viền trắng
-                 decoration: BoxDecoration(
-                   color: Colors.white,
-                   shape: BoxShape.circle,
-                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 5, offset: Offset(0, 2))]
-                 ),
-                 child: CircleAvatar(
-                   radius: 40,
-                   backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                   backgroundColor: Colors.grey.shade200,
-                   child: avatarUrl == null ? const Icon(Icons.person, size: 40, color: Colors.white) : null,
-                 ),
-              )
-            ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 2),
+          _buildOnlineStatus({
+            'isOnline': isOnline,
+            'lastSeen': lastSeen,
+          }), // ✅ Gọi hàm hiển thị trạng thái
+        ],
       ),
-    );
-  }
+      background: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Ảnh bìa hoặc gradient mặc định
+          coverUrl != null
+              ? Image.network(
+                  coverUrl,
+                  fit: BoxFit.cover,
+                )
+              : Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+          // Lớp phủ mờ gradient
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment(0.0, 0.6),
+                end: Alignment(0.0, 0.0),
+                colors: <Color>[
+                  Color(0x60000000),
+                  Color(0x00000000),
+                ],
+              ),
+            ),
+          ),
+          // Avatar
+          Positioned(
+            bottom: -1,
+            left: 16,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: CircleAvatar(
+                radius: 40,
+                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                backgroundColor: Colors.grey.shade300,
+                child: avatarUrl == null
+                    ? const Icon(Icons.person, size: 40, color: Colors.white)
+                    : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 
   // 2. Các nút hành động (Nhắn tin, Kết bạn)
   Widget _buildActionButtons() {
@@ -530,6 +585,7 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
          }
       );
    }
+   
 
    // --- SnackBar Helper ---
    void _showSnack(String message) {

@@ -6,6 +6,8 @@ import 'group_chat_screen.dart';
 import 'post_screen.dart';
 import 'profile_screen.dart';
 import 'friends_screen.dart';    // Màn hình quản lý bạn bè
+import '../services/presence_service.dart'; // Import PresenceService
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,7 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // State và Controller cho thanh tìm kiếm
   String _searchQuery = "";
   final TextEditingController _searchController = TextEditingController();
-
+  final PresenceService _presenceService = PresenceService(); // ← Khởi tạo PresenceService
   // Danh sách các Widget tương ứng với các tab
   late List<Widget> _pages;
 
@@ -29,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _updatePages();
     // Lắng nghe sự thay đổi trong ô tìm kiếm
     _searchController.addListener(_onSearchChanged);
+     _presenceService.init(); // ← khởi tạo PresenceService
   }
 
   // Hàm cập nhật danh sách trang (quan trọng khi searchQuery thay đổi)
@@ -64,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
+    _presenceService.dispose(); // ← hủy PresenceService
   }
 
   @override

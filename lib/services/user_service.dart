@@ -33,29 +33,32 @@ class UserService {
     }
   }
 
-  // 2. Lưu thông tin người dùng mới vào Firestore khi đăng ký thành công
-  Future<void> saveUserData({
-    required String uid,
-    required String name,
-    required String phone,
-  }) async {
-    try {
-      await _usersCollection.doc(uid).set({
-        'name': name,
-        'phone': phone,
-        'uid': uid,
-        'createdAt': Timestamp.now(),
-        'name_lowercase': name.toLowerCase(), // Để tìm kiếm
-        'avatarUrl': null, // Trường avatar (tùy chọn)
-        'coverUrl': null,  // Trường ảnh bìa (tùy chọn)
-        'bio': null,       // Trường tiểu sử (tùy chọn)
-      });
-      debugPrint("Lưu thông tin user $uid thành công.");
-    } catch (e) {
-      debugPrint("Lỗi lưu User Data: $e");
-      rethrow;
-    }
+// 2. Lưu thông tin người dùng mới vào Firestore khi đăng ký thành công
+Future<void> saveUserData({
+  required String uid,
+  required String name,
+  required String phone,
+}) async {
+  try {
+    await _usersCollection.doc(uid).set({
+      'uid': uid,
+      'name': name,
+      'phone': phone,
+      'createdAt': Timestamp.now(),
+      'name_lowercase': name.toLowerCase(), // Dùng để tìm kiếm
+      'avatarUrl': null, // Ảnh đại diện (có thể cập nhật sau)
+      'coverUrl': null,  // Ảnh bìa
+      'bio': null,       // Tiểu sử cá nhân
+      'isOnline': true,  // ✅ Trạng thái ban đầu khi đăng ký
+      'lastSeen': FieldValue.serverTimestamp(), // ✅ Thời gian hoạt động cuối
+    });
+    debugPrint("✅ Lưu thông tin user $uid thành công.");
+  } catch (e) {
+    debugPrint("❌ Lỗi lưu User Data: $e");
+    rethrow;
   }
+}
+
 
   // 3. Lấy thông tin chi tiết của một người dùng dựa trên UID
   Future<DocumentSnapshot?> getUserData(String uid) async {
@@ -622,6 +625,25 @@ Future<void> removeMemberFromGroupWithAdminCheck(String chatRoomId, String membe
   }
 }
 
+// 28. Cập nhật trạng thái (Online/Offline) của user hiện tại
+  Future<void> updateUserPresence(String status) async {
+    if (currentUser == null) return;
+    try {
+      await _usersCollection.doc(currentUser!.uid).update({
+        'status': status,
+        'lastSeen': Timestamp.now(), // Luôn cập nhật thời gian
+      });
+      debugPrint("Cập nhật trạng thái: $status");
+    } catch (e) {
+      // Bỏ qua lỗi (ví dụ: lỗi mạng khi app đang đóng)
+      debugPrint("Lỗi cập nhật trạng thái: $e");
+    }
+  }
+
+  // 29. Lấy Stream thông tin của 1 user (để xem trạng thái)
+  Stream<DocumentSnapshot> getUserDataStream(String uid) {
+    return _usersCollection.doc(uid).snapshots();
+  }
   
 } // End of UserService
 
